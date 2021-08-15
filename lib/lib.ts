@@ -1,7 +1,7 @@
 // eslint-disable-next-line
 require('dotenv').config()
 import Web3 from 'web3'
-import { ONEINCH_ABIs, ZRX_ABIs } from './__abis__/abis'
+import { ONEINCH_ABIs, ZRX_ABIs, ArbitrageBotABI } from './__abis__/abis'
 import { Addresses, SupportedToken } from './addresses'
 import axios from 'axios'
 import BN from 'bn.js'
@@ -17,20 +17,21 @@ export const web3 = new Web3(
 if (!process.env.OWNER_ADDRESS)
   throw panic(1, 'OWNER_ADDRESS undefined')
 
-const FLASH_AMOUNT = web3.utils.toWei('100000')
 const OWNER_ADDRESS = process.env.OWNER_ADDRESS
 
 ///////////////////////////////////////////////////////////////////////////////
 // bot //
 
+const ArbContract = new web3.eth.Contract(
 // eslint-disable-next-line
-const ArbContract = new web3.eth.Contract('' as any, '')
+  ArbitrageBotABI.abi as any,
+  ArbitrageBotABI.networks[1].address
+)
 
-// eslint-disable-next-line
-export const Bot = {
-  checkArb: async (
-    zrxOrder: I0xOrderBookDataRecordOrder,
-    metadata: I0xOrderBookDataRecordMetadata,
+export namespace Bot {
+  export const checkArb = async (
+    zrxOrder: Ox.I0xOrderBookDataRecordOrder,
+    metadata: Ox.I0xOrderBookDataRecordMetadata,
     [fromToken, destToken]: [SupportedToken, SupportedToken]
   ): Promise<void> => {
     // The bot is always going to be the taker
@@ -48,13 +49,13 @@ export const Bot = {
       )) < 0.01) return
     }
 
-    const oneInchData = await getOneInchExpectedReturn(
+    const oneInchData = await OneInch.getExpectedReturn(
       fromToken, destToken, zrxOrder.makerAssetAmount
     ).catch(e => { throw e })
 
     const outputAssetAmount = new BN(oneInchData.returnAmount)
 
-    const profitability = Bot.calcProfitablity(
+    const profitabitlity = Bot.calcProfitablity(
       zrxOrder,
       inputAssetAmount,
       outputAssetAmount,
@@ -62,8 +63,10 @@ export const Bot = {
       [fromToken, destToken]
     )
 
-    if (profitability.lt(new BN(0)))
+    if (profitabitlity.lt(new BN(0)))
       return
+
+    console.log('Profitable arb found')
 
     return Bot.trade(
       [fromToken, destToken],
@@ -72,12 +75,12 @@ export const Bot = {
       inputAssetAmount.toString(),
       ArbContract
     )
-  },
+  }
 
-  trade: async (
+  export const trade = async (
     [fromToken, destToken]: [SupportedToken, SupportedToken],
-    zrxOrder: I0xOrderBookDataRecordOrder,
-    oneInchData: IOneInchExpectedReturn,
+    zrxOrder: Ox.I0xOrderBookDataRecordOrder,
+    oneInchData: OneInch.IOneInchExpectedReturn,
     fillAmount: string,
     ArbContract: Contract
   ): Promise<void> => {
@@ -112,7 +115,7 @@ export const Bot = {
     ).toString()
 
     return ArbContract.methods.flashloan({
-      amount: FLASH_AMOUNT,
+      amount: fillAmount,
       flashloanCurrency: tokenSymToAddress(fromToken),
       destCurrency: tokenSymToAddress(destToken),
       OxData: data,
@@ -122,10 +125,10 @@ export const Bot = {
     }).send({
       from: OWNER_ADDRESS
     })
-  },
+  }
 
-  calcProfitablity: (
-    zrxOrder: I0xOrderBookDataRecordOrder,
+  export const calcProfitablity = (
+    zrxOrder: Ox.I0xOrderBookDataRecordOrder,
     inputAssetAmount: BN,
     outputAssetAmount: BN,
     estimatedGasFee: BN,
@@ -147,11 +150,11 @@ export const Bot = {
     return outputAssetAmount
       .sub(inputAssetAmount)
       .sub(estimatedGasFee)
-  },
+  }
 
-  callOrderBookAndFindArbs: async (
+  export const callOrderBookAndFindArbs = async (
     [fromToken, destToken]: [SupportedToken, SupportedToken]
-  ): Promise<void[]> => fetch0xOrderBook(
+  ): Promise<void[]> => Ox.fetch0xOrderBook(
     fromToken, destToken
   ).then(orderbook => Promise.all(orderbook.bids.records.map(
     order => Bot.checkArb(
@@ -165,49 +168,6 @@ export const Bot = {
 ///////////////////////////////////////////////////////////////////////////////
 // 0x //
 
-export interface I0xOrderBookDataRecordOrder {
-  signature: string
-  senderAddress: string
-  makerAddress: string
-  takerAddress: string
-  makerFee: string
-  takerFee: string
-  makerAssetAmount: string
-  takerAssetAmount: string
-  makerAssetData: string
-  takerAssetData: string
-  salt: string
-  exchangeAddress: string
-  feeRecipientAddress: string
-  expirationTimeSeconds: string
-  makerFeeAssetData: string
-  chainId: number
-  takerFeeAssetData: string
-}
-
-export interface I0xOrderBookDataRecordMetadata {
-  orderHash: string
-  remainingFillableTakerAssetAmount: string
-  createdAt: Date | string 
-}
-
-export interface I0xOrderBookDataRecord {
-  order: I0xOrderBookDataRecordOrder
-  metaData: I0xOrderBookDataRecordMetadata
-}
-
-export interface I0xOrderBookData {
-  total: number
-  page: number
-  perPage: number
-  records: I0xOrderBookDataRecord[]
-}
-
-export interface I0xOrderBook {
-  bids: I0xOrderBookData
-  asks: I0xOrderBookData
-}
-
 // The api doesn't seem to like checksummed addresses
 // unless there's something I'm doing wrong
 const addrs: {
@@ -219,47 +179,93 @@ const addrs: {
   SAI: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359'
 }
 
-export const fetch0xOrderBook = (
-  baseAssetSymbol: SupportedToken,
-  quoteAssetSymbol: SupportedToken,
-  limit = 1000
-): Promise<I0xOrderBook> => axios.get<I0xOrderBook>(
-  `https://api.0x.org/sra/v3/orderbook?baseAssetData=0xf47261b0000000000000000000000000${
-    addrs[baseAssetSymbol].substring(2,42)
-  }&quoteAssetData=0xf47261b0000000000000000000000000${
-    addrs[quoteAssetSymbol].substring(2,42)
-  }&perPage=${limit}`
-).then(res => res.data, e => { throw e })
+export namespace Ox {
+  export interface I0xOrderBookDataRecordOrder {
+    signature: string
+    senderAddress: string
+    makerAddress: string
+    takerAddress: string
+    makerFee: string
+    takerFee: string
+    makerAssetAmount: string
+    takerAssetAmount: string
+    makerAssetData: string
+    takerAssetData: string
+    salt: string
+    exchangeAddress: string
+    feeRecipientAddress: string
+    expirationTimeSeconds: string
+    makerFeeAssetData: string
+    chainId: number
+    takerFeeAssetData: string
+  }
 
+  export interface I0xOrderBookDataRecordMetadata {
+    orderHash: string
+    remainingFillableTakerAssetAmount: string
+    createdAt: Date | string 
+  }
+
+  export interface I0xOrderBookDataRecord {
+    order: I0xOrderBookDataRecordOrder
+    metaData: I0xOrderBookDataRecordMetadata
+  }
+
+  export interface I0xOrderBookData {
+    total: number
+    page: number
+    perPage: number
+    records: I0xOrderBookDataRecord[]
+  }
+
+  export interface I0xOrderBook {
+    bids: I0xOrderBookData
+    asks: I0xOrderBookData
+  }
+
+  export const fetch0xOrderBook = (
+    baseAssetSymbol: SupportedToken,
+    quoteAssetSymbol: SupportedToken,
+    limit = 1000
+  ): Promise<I0xOrderBook> => axios.get<I0xOrderBook>(
+    `https://api.0x.org/sra/v3/orderbook?baseAssetData=0xf47261b0000000000000000000000000${
+      addrs[baseAssetSymbol].substring(2,42)
+    }&quoteAssetData=0xf47261b0000000000000000000000000${
+      addrs[quoteAssetSymbol].substring(2,42)
+    }&perPage=${limit}`
+  ).then(res => res.data, e => { throw e })
+}
 ///////////////////////////////////////////////////////////////////////////////
 // oneinch //
 
-const ONE_SPLIT_PARTS = 10
-const ONE_SPLIT_FLAGS = 0
+export namespace OneInch {
+  export const ONE_SPLIT_PARTS = 10
+  export const ONE_SPLIT_FLAGS = 0
 
-export const OneSplitContractInstance = new web3.eth.Contract(
-  ONEINCH_ABIs.IOneSplitMulti, Addresses.ONEINCH.MAINNET.OneSplitAudit
-)
+  export const OneSplitContractInstance = new web3.eth.Contract(
+    ONEINCH_ABIs.IOneSplitMulti, Addresses.ONEINCH.MAINNET.OneSplitAudit
+  )
 
-export interface IOneInchExpectedReturn {
-  returnAmount: string
-  distribution: string[]
-  '0': string
-  '1': string[]
-}
-/***/
-export async function getOneInchExpectedReturn(
-  fromToken: SupportedToken,
-  destToken: SupportedToken,
-  amount: string
-): Promise<IOneInchExpectedReturn> {
-  return OneSplitContractInstance.methods.getExpectedReturn(
-    tokenSymToAddress(fromToken),
-    tokenSymToAddress(destToken),
-    amount,
-    ONE_SPLIT_PARTS,
-    ONE_SPLIT_FLAGS
-  ).call()
+  export interface IOneInchExpectedReturn {
+    returnAmount: string
+    distribution: string[]
+    '0': string
+    '1': string[]
+  }
+  /***/
+  export async function getExpectedReturn(
+    fromToken: SupportedToken,
+    destToken: SupportedToken,
+    amount: string
+  ): Promise<IOneInchExpectedReturn> {
+    return OneSplitContractInstance.methods.getExpectedReturn(
+      tokenSymToAddress(fromToken),
+      tokenSymToAddress(destToken),
+      amount,
+      ONE_SPLIT_PARTS,
+      ONE_SPLIT_FLAGS
+    ).call()
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
