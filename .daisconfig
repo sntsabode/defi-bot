@@ -1,0 +1,29 @@
+{
+  "solversion": "0.8.6",
+  "defaultNet": "MAINNET",
+  "eslint": true,
+  "git": true,
+  "contractWriteDir": "/lib/__abis__/artifacts",
+  "ganache": true,
+  "packman": "yarn",
+  "omitTruffleHdWalletProvider": false,
+  "ethNodeURL": "wss://mainnet.infura.io/ws/v3/",
+  "contractImports": [
+    {
+      "protocol": "DYDX",
+      "pack": "Flashloan",
+      "omitNpmPack": true,
+      "abi": false
+    },
+    {
+      "protocol": "ONEINCH",
+      "pack": "OneSplit",
+      "omitNpmPack": true,
+      "abi": true
+    }
+  ],
+
+  "addedDependencies": [],
+
+  "addedDevDependencies": []
+}
