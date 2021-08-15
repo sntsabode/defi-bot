@@ -4,7 +4,8 @@
   "main": "/lib/index.ts",
   "license": "MIT",
   "scripts": {
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "chain": "chmod +x ./.ganache.sh && ./.ganache.sh"
   },
   "devDependencies": {
     "@types/node": "^16.6.1",
