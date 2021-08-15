@@ -8,3 +8,6 @@ export const ZRX_ABIs = {
   ZRXExchange: require('./abis/ZRXExchange.json'),
   FillOrderABI: require('./abis/FillOrderABI.json')
 }
+
+import ArbitrageBotABI from './artifacts/ArbitrageBot.json'
+export { ArbitrageBotABI }
