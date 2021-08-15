@@ -40,10 +40,9 @@ export namespace Bot {
       return
     }
 
-    const amountLeft = new BN(metadata.remainingFillableTakerAssetAmount)
     const inputAssetAmount = new BN(zrxOrder.takerAssetAmount)
 
-    if (amountLeft.toString() !== zrxOrder.takerAssetAmount) {
+    if (metadata.remainingFillableTakerAssetAmount.toString() !== zrxOrder.takerAssetAmount) {
       if (parseFloat(web3.utils.fromWei(
         metadata.remainingFillableTakerAssetAmount
       )) < 0.01) return
