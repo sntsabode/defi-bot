@@ -20,8 +20,6 @@ contract ArbitrageBot is ICallee {
   address immutable OneInchAddress;
 
   address immutable ZRXExchangeAddress;
-  address immutable ZRXERC20ProxyAddress;
-  address immutable ZRXStakingProxyAddress;
 
   address immutable USDC;
   address immutable WETH;
@@ -34,8 +32,6 @@ contract ArbitrageBot is ICallee {
     address _ISoloMarginAddress,
     address _OneInchAddress,
     address _ZRXExchangeAddress,
-    address _ZRXERC20ProxyAddress,
-    address _ZRXStakingProxyAddress,
     address _USDC,
     address _WETH,
     address _DAI,
@@ -52,8 +48,6 @@ contract ArbitrageBot is ICallee {
     OneInchAddress = _OneInchAddress;
 
     ZRXExchangeAddress = _ZRXExchangeAddress;
-    ZRXERC20ProxyAddress = _ZRXERC20ProxyAddress;
-    ZRXStakingProxyAddress = _ZRXStakingProxyAddress;
 
     DyDxCurrencyMarketIDs[_WETH] = 0;
     DyDxCurrencyMarketIDs[_SAI] = 1;
