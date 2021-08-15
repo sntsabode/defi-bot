@@ -67,6 +67,6 @@ module.exports = {
     },
   },
       
-  contracts_directory: './contracts/',
-  contracts_build_directory: '/lib/__abis__/artifacts',
+  contracts_directory: './contracts',
+  contracts_build_directory: './lib/__abis__/artifacts',
 }
