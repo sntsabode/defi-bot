@@ -4,13 +4,10 @@ mocha -r ts-node/register tests/lib.test.ts --timeout 900000
 import * as lib from '../lib/lib'
 import { assert, expect } from 'chai'
 
-const DAI = '0x6B175474E89094C44Da98b954EedeAC495271d0F'
-const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
-
 describe('lib test suite', () => {
   it('Should call the getOneInchExpectedReturn function', async () => {
     const oneInchExpectedReturn = await lib.getOneInchExpectedReturn(
-      DAI, USDC, lib.web3.utils.toWei('1')
+      'DAI', 'USDC', lib.web3.utils.toWei('1')
     )
 
     expect(oneInchExpectedReturn).to.have.property('returnAmount')
@@ -22,5 +19,54 @@ describe('lib test suite', () => {
     assert.isNotNaN(parseFloat(oneInchExpectedReturn.returnAmount))
     for (const dist of oneInchExpectedReturn.distribution)
       assert.isNotNaN(parseFloat(dist))
+  })
+
+  it('Should call the fetch0xOrderBook function', async () => {
+    const OxOrderBook = await lib.fetch0xOrderBook('DAI', 'USDC')
+
+    expect(OxOrderBook).to.have.property('bids')
+    expect(OxOrderBook).to.have.property('asks')
+
+    function dataAssertions(data: lib.I0xOrderBookData) {
+      expect(data).to.have.property('page')
+      assert.isNumber(data.page)
+      expect(data).to.have.property('perPage')
+      assert.isNumber(data.perPage)
+      expect(data).to.have.property('total')
+      assert.isNumber(data.total)
+      expect(data).to.have.property('records')
+      assert.isArray(data.records)
+      assert.isNotEmpty(data.records)
+
+      for (const record of data.records) {
+        expect(record).to.have.property('metaData')
+        expect(record).to.have.property('order')
+
+        expect(record.metaData).to.have.property('orderHash')
+        expect(record.metaData).to.have.property('remainingFillableTakerAssetAmount')
+        expect(record.metaData).to.have.property('createdAt')
+
+        expect(record.order).to.have.property('signature')
+        expect(record.order).to.have.property('senderAddress')
+        expect(record.order).to.have.property('makerAddress')
+        expect(record.order).to.have.property('takerAddress')
+        expect(record.order).to.have.property('makerFee')
+        expect(record.order).to.have.property('takerFee')
+        expect(record.order).to.have.property('makerAssetAmount')
+        expect(record.order).to.have.property('takerAssetAmount')
+        expect(record.order).to.have.property('makerAssetData')
+        expect(record.order).to.have.property('takerAssetData')
+        expect(record.order).to.have.property('salt')
+        expect(record.order).to.have.property('exchangeAddress')
+        expect(record.order).to.have.property('feeRecipientAddress')
+        expect(record.order).to.have.property('expirationTimeSeconds')
+        expect(record.order).to.have.property('makerFeeAssetData')
+        expect(record.order).to.have.property('chainId')
+        expect(record.order).to.have.property('takerFeeAssetData')
+      }
+    }
+
+    dataAssertions(OxOrderBook.asks)
+    dataAssertions(OxOrderBook.bids)
   })
 })
