@@ -75,7 +75,7 @@ describe('lib test suite', () => {
     const profitabitlity_ = lib.Bot.calcProfitablity(
       {
         takerFeeAssetData: '0xf47261b00000000000000000000000006b175474e89094c44da98b954eedeac495271d0f',
-        takerFee: ''
+        takerFee: '1' // value from the api calls is usually '0'
       } as unknown as lib.Ox.I0xOrderBookDataRecordOrder,
       new BN('799520287800000000000000'),
       new BN('799520297800000000000000'),
