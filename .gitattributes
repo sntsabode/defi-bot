@@ -8,3 +8,5 @@ contracts/libraries/DyDx/Account.sol* linguist-vendored
 
 contracts/interfaces/DyDx/ISoloMargin.sol* linguist-vendored
 contracts/interfaces/DyDx/ICallee.sol* linguist-vendored
+
+test/dai.abi.js* linguist-vendored
