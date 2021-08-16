@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "tsc": "tsc",
-    "testsuite": "mocha -r ts-node/register tests/.test.ts --timeout 900000",
+    "test:contract": "truffle test ./test/ArbitrageBot.test.js",
+    "test:suite": "mocha -r ts-node/register tests/.test.ts --timeout 900000",
     "chain": "yarn run getAddress && chmod +x ./.ganache.sh && ./.ganache.sh",
     "getAddress": "node getAddress.js"
   },
