@@ -6,7 +6,8 @@
   "scripts": {
     "tsc": "tsc",
     "testsuite": "mocha -r ts-node/register tests/.test.ts --timeout 900000",
-    "chain": "chmod +x ./.ganache.sh && ./.ganache.sh"
+    "chain": "yarn run getAddress && chmod +x ./.ganache.sh && ./.ganache.sh",
+    "getAddress": "node getAddress.js"
   },
   "devDependencies": {
     "@types/chai": "^4.2.21",
