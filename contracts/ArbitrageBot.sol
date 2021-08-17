@@ -16,9 +16,7 @@ contract ArbitrageBot is ICallee {
   mapping(address => uint) public DyDxCurrencyMarketIDs;
 
   address immutable SoloAddress;
-
   address immutable OneInchAddress;
-
   address immutable ZRXExchangeAddress;
 
   address immutable USDC;
@@ -27,6 +25,11 @@ contract ArbitrageBot is ICallee {
   address immutable SAI;
 
   address immutable Owner;
+
+  event ERC20Approved(
+    address token,
+    uint256 amount
+  );
 
   constructor(
     address _ISoloMarginAddress,
@@ -89,8 +92,8 @@ contract ArbitrageBot is ICallee {
     CallFuncParam memory data = abi.decode(_data, (CallFuncParam));
 
     this.arbitrage(
-      IERC20(data.flashloanCurrency),
-      IERC20(data.destCurrency),
+      data.flashloanCurrency,
+      data.destCurrency,
       data.amount,
       data.OxData,
       data.oneSplitMinReturn,
@@ -100,8 +103,8 @@ contract ArbitrageBot is ICallee {
   }
 
   function arbitrage(
-    IERC20 fromToken,
-    IERC20 destToken,
+    address fromToken,
+    address destToken,
     uint256 amount,
     bytes calldata OxData,
     uint256 oneSplitMinReturn,
@@ -111,7 +114,7 @@ contract ArbitrageBot is ICallee {
     uint256 startBalance;
     uint256 endBalance;
     
-    startBalance = fromToken.balanceOf(address(this));
+    startBalance = IERC20(fromToken).balanceOf(address(this));
 
     this.trade(
       fromToken,
@@ -123,7 +126,7 @@ contract ArbitrageBot is ICallee {
       flags
     );
 
-    endBalance = fromToken.balanceOf(address(this));
+    endBalance = IERC20(fromToken).balanceOf(address(this));
 
     // Require that the arbitrage is profitable
     require(
@@ -135,8 +138,8 @@ contract ArbitrageBot is ICallee {
   /*
    */
   function trade(
-    IERC20 fromToken,
-    IERC20 destToken,
+    address fromToken,
+    address destToken,
     uint256 amount,
     bytes calldata OxData,
     uint256 oneSplitMinReturn,
@@ -147,7 +150,7 @@ contract ArbitrageBot is ICallee {
     this.swapOnZRX(fromToken, amount, OxData);
 
     // Assumes a destToken balance of 0 before the 0x trade
-    uint256 destTokensReceived = destToken.balanceOf(address(this));
+    uint256 destTokensReceived = IERC20(destToken).balanceOf(address(this));
 
     this.swapOnOneInch(
       destToken,
@@ -163,29 +166,40 @@ contract ArbitrageBot is ICallee {
    * Swaps tokens on 0x
    */
   function swapOnZRX(
-    IERC20 fromToken,
+    address fromToken,
     uint256 amount,
     bytes calldata calldatabytes
   ) external payable OnlyOwner {
-    fromToken.approve(ZRXExchangeAddress, amount);
+    IERC20(fromToken).approve(ZRXExchangeAddress, amount);
 
     address(ZRXExchangeAddress).call{value: msg.value}(calldatabytes);
 
-    fromToken.approve(ZRXExchangeAddress, 0);
+    IERC20(fromToken).approve(ZRXExchangeAddress, 0);
   }
 
   /**
    * Swaps tokens on OneInch
    */
   function swapOnOneInch(
-    IERC20 fromToken,
-    IERC20 destToken,
+    address _fromToken,
+    address _destToken,
     uint256 amount,
     uint256 minReturn,
     uint256[] memory distribution,
     uint256 flags
   ) external OnlyOwner {
+    IERC20 fromToken;
+    IERC20 destToken;
+    fromToken = IERC20(_fromToken);
+    destToken = IERC20(_destToken);
+
     fromToken.approve(OneInchAddress, amount);
+    emit ERC20Approved(_fromToken, amount);
+
+    require(
+      fromToken.allowance(address(this), OneInchAddress) > 0,
+      "Approval failed"
+    );
 
     IOneSplit(OneInchAddress).swap(
       fromToken,
@@ -197,6 +211,25 @@ contract ArbitrageBot is ICallee {
     );
 
     fromToken.approve(OneInchAddress, amount);
+  }
+
+  function getOneInchExpectedReturn(
+    IERC20 fromToken,
+    IERC20 destToken,
+    uint256 amount,
+    uint256 parts,
+    uint256 flags
+  ) external view returns(
+    uint256 returnAmount,
+    uint256[] memory distribution
+  ) {
+    return IOneSplit(OneInchAddress).getExpectedReturn(
+      fromToken,
+      destToken,
+      amount,
+      parts,
+      flags
+    );
   }
   
   // Function meant to be called by the bot
