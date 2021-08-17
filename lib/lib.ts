@@ -17,7 +17,7 @@ export const web3 = new Web3(
 if (!process.env.OWNER_ADDRESS)
   throw panic(1, 'OWNER_ADDRESS undefined')
 
-const OWNER_ADDRESS = process.env.OWNER_ADDRESS
+const { OWNER_ADDRESS } = process.env
 
 ///////////////////////////////////////////////////////////////////////////////
 // bot //
@@ -62,7 +62,7 @@ export namespace Bot {
       [fromToken, destToken]
     )
 
-    if (profitabitlity.lt(new BN(0)))
+    if (profitabitlity.lt(new BN('0')))
       return
 
     console.log('Profitable arb found')
